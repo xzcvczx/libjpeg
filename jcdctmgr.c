@@ -23,7 +23,7 @@ typedef struct {
   struct jpeg_forward_dct pub;	/* public fields */
 
   /* Pointer to the DCT routine actually in use */
-  forward_DCT_method_ptr do_dct;
+  forward_DCT_method_ptr do_dct[MAX_COMPONENTS];
 
   /* The actual post-DCT divisors --- not identical to the quant table
    * entries, because of scaling (especially for an unnormalized DCT).
@@ -33,7 +33,7 @@ typedef struct {
 
 #ifdef DCT_FLOAT_SUPPORTED
   /* Same as above for the floating-point case. */
-  float_DCT_method_ptr do_float_dct;
+  float_DCT_method_ptr do_float_dct[MAX_COMPONENTS];
   FAST_FLOAT * float_divisors[NUM_QUANT_TBLS];
 #endif
 } my_fdct_controller;
@@ -61,6 +61,223 @@ start_pass_fdctmgr (j_compress_ptr cinfo)
 
   for (ci = 0, compptr = cinfo->comp_info; ci < cinfo->num_components;
        ci++, compptr++) {
+    /* Select the proper DCT routine for this component's scaling */
+    switch ((compptr->DCT_h_scaled_size << 8) + compptr->DCT_v_scaled_size) {
+#ifdef DCT_SCALING_SUPPORTED
+    case ((1 << 8) + 1):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_1x1;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((2 << 8) + 2):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_2x2;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((3 << 8) + 3):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_3x3;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((4 << 8) + 4):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_4x4;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((5 << 8) + 5):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_5x5;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((6 << 8) + 6):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_6x6;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((7 << 8) + 7):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_7x7;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((9 << 8) + 9):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_9x9;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((10 << 8) + 10):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_10x10;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((11 << 8) + 11):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_11x11;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((12 << 8) + 12):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_12x12;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((13 << 8) + 13):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_13x13;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((14 << 8) + 14):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_14x14;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((15 << 8) + 15):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_15x15;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((16 << 8) + 16):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_16x16;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((16 << 8) + 8):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_16x8;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((14 << 8) + 7):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_14x7;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((12 << 8) + 6):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_12x6;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((10 << 8) + 5):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_10x5;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((8 << 8) + 4):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_8x4;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((6 << 8) + 3):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_6x3;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((4 << 8) + 2):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_4x2;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((2 << 8) + 1):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_2x1;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((8 << 8) + 16):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_8x16;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((7 << 8) + 14):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_7x14;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((6 << 8) + 12):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_6x12;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((5 << 8) + 10):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_5x10;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((4 << 8) + 8):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_4x8;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((3 << 8) + 6):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_3x6;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((2 << 8) + 4):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_2x4;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+    case ((1 << 8) + 2):
+      if (cinfo->dct_method == JDCT_ISLOW)
+	fdct->do_dct[ci] = jpeg_fdct_1x2;
+      else
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+      break;
+#endif
+    case ((DCTSIZE << 8) + DCTSIZE):
+      switch (cinfo->dct_method) {
+#ifdef DCT_ISLOW_SUPPORTED
+      case JDCT_ISLOW:
+	fdct->do_dct[ci] = jpeg_fdct_islow;
+	break;
+#endif
+#ifdef DCT_IFAST_SUPPORTED
+      case JDCT_IFAST:
+	fdct->do_dct[ci] = jpeg_fdct_ifast;
+	break;
+#endif
+#ifdef DCT_FLOAT_SUPPORTED
+      case JDCT_FLOAT:
+	fdct->do_float_dct[ci] = jpeg_fdct_float;
+	break;
+#endif
+      default:
+	ERREXIT(cinfo, JERR_NOT_COMPILED);
+	break;
+      }
+      break;
+    default:
+      ERREXIT2(cinfo, JERR_BAD_DCTSIZE,
+	       compptr->DCT_h_scaled_size, compptr->DCT_v_scaled_size);
+      break;
+    }
     qtblno = compptr->quant_tbl_no;
     /* Make sure specified quantization table is present */
     if (qtblno < 0 || qtblno >= NUM_QUANT_TBLS ||
@@ -185,43 +402,16 @@ forward_DCT (j_compress_ptr cinfo, jpeg_component_info * compptr,
 {
   /* This routine is heavily used, so it's worth coding it tightly. */
   my_fdct_ptr fdct = (my_fdct_ptr) cinfo->fdct;
-  forward_DCT_method_ptr do_dct = fdct->do_dct;
+  forward_DCT_method_ptr do_dct = fdct->do_dct[compptr->component_index];
   DCTELEM * divisors = fdct->divisors[compptr->quant_tbl_no];
   DCTELEM workspace[DCTSIZE2];	/* work area for FDCT subroutine */
   JDIMENSION bi;
 
   sample_data += start_row;	/* fold in the vertical offset once */
 
-  for (bi = 0; bi < num_blocks; bi++, start_col += DCTSIZE) {
-    /* Load data into workspace, applying unsigned->signed conversion */
-    { register DCTELEM *workspaceptr;
-      register JSAMPROW elemptr;
-      register int elemr;
-
-      workspaceptr = workspace;
-      for (elemr = 0; elemr < DCTSIZE; elemr++) {
-	elemptr = sample_data[elemr] + start_col;
-#if DCTSIZE == 8		/* unroll the inner loop */
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	*workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-#else
-	{ register int elemc;
-	  for (elemc = DCTSIZE; elemc > 0; elemc--) {
-	    *workspaceptr++ = GETJSAMPLE(*elemptr++) - CENTERJSAMPLE;
-	  }
-	}
-#endif
-      }
-    }
-
+  for (bi = 0; bi < num_blocks; bi++, start_col += compptr->DCT_h_scaled_size) {
     /* Perform the DCT */
-    (*do_dct) (workspace);
+    (*do_dct) (workspace, sample_data, start_col);
 
     /* Quantize/descale the coefficients, and store into coef_blocks[] */
     { register DCTELEM temp, qval;
@@ -275,7 +465,7 @@ forward_DCT_float (j_compress_ptr cinfo, jpeg_component_info * compptr,
 {
   /* This routine is heavily used, so it's worth coding it tightly. */
   my_fdct_ptr fdct = (my_fdct_ptr) cinfo->fdct;
-  float_DCT_method_ptr do_dct = fdct->do_float_dct;
+  float_DCT_method_ptr do_dct = fdct->do_float_dct[compptr->component_index];
   FAST_FLOAT * divisors = fdct->float_divisors[compptr->quant_tbl_no];
   FAST_FLOAT workspace[DCTSIZE2]; /* work area for FDCT subroutine */
   JDIMENSION bi;
@@ -283,36 +473,8 @@ forward_DCT_float (j_compress_ptr cinfo, jpeg_component_info * compptr,
   sample_data += start_row;	/* fold in the vertical offset once */
 
   for (bi = 0; bi < num_blocks; bi++, start_col += DCTSIZE) {
-    /* Load data into workspace, applying unsigned->signed conversion */
-    { register FAST_FLOAT *workspaceptr;
-      register JSAMPROW elemptr;
-      register int elemr;
-
-      workspaceptr = workspace;
-      for (elemr = 0; elemr < DCTSIZE; elemr++) {
-	elemptr = sample_data[elemr] + start_col;
-#if DCTSIZE == 8		/* unroll the inner loop */
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	*workspaceptr++ = (FAST_FLOAT)(GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-#else
-	{ register int elemc;
-	  for (elemc = DCTSIZE; elemc > 0; elemc--) {
-	    *workspaceptr++ = (FAST_FLOAT)
-	      (GETJSAMPLE(*elemptr++) - CENTERJSAMPLE);
-	  }
-	}
-#endif
-      }
-    }
-
     /* Perform the DCT */
-    (*do_dct) (workspace);
+    (*do_dct) (workspace, sample_data, start_col);
 
     /* Quantize/descale the coefficients, and store into coef_blocks[] */
     { register FAST_FLOAT temp;
@@ -357,19 +519,16 @@ jinit_forward_dct (j_compress_ptr cinfo)
 #ifdef DCT_ISLOW_SUPPORTED
   case JDCT_ISLOW:
     fdct->pub.forward_DCT = forward_DCT;
-    fdct->do_dct = jpeg_fdct_islow;
     break;
 #endif
 #ifdef DCT_IFAST_SUPPORTED
   case JDCT_IFAST:
     fdct->pub.forward_DCT = forward_DCT;
-    fdct->do_dct = jpeg_fdct_ifast;
     break;
 #endif
 #ifdef DCT_FLOAT_SUPPORTED
   case JDCT_FLOAT:
     fdct->pub.forward_DCT = forward_DCT_float;
-    fdct->do_float_dct = jpeg_fdct_float;
     break;
 #endif
   default:

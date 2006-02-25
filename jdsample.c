@@ -237,11 +237,11 @@ h2v1_upsample (j_decompress_ptr cinfo, jpeg_component_info * compptr,
   register JSAMPROW inptr, outptr;
   register JSAMPLE invalue;
   JSAMPROW outend;
-  int inrow;
+  int outrow;
 
-  for (inrow = 0; inrow < cinfo->max_v_samp_factor; inrow++) {
-    inptr = input_data[inrow];
-    outptr = output_data[inrow];
+  for (outrow = 0; outrow < cinfo->max_v_samp_factor; outrow++) {
+    inptr = input_data[outrow];
+    outptr = output_data[outrow];
     outend = outptr + cinfo->output_width;
     while (outptr < outend) {
       invalue = *inptr++;	/* don't need GETJSAMPLE() here */
@@ -308,11 +308,11 @@ h2v1_fancy_upsample (j_decompress_ptr cinfo, jpeg_component_info * compptr,
   register JSAMPROW inptr, outptr;
   register int invalue;
   register JDIMENSION colctr;
-  int inrow;
+  int outrow;
 
-  for (inrow = 0; inrow < cinfo->max_v_samp_factor; inrow++) {
-    inptr = input_data[inrow];
-    outptr = output_data[inrow];
+  for (outrow = 0; outrow < cinfo->max_v_samp_factor; outrow++) {
+    inptr = input_data[outrow];
+    outptr = output_data[outrow];
     /* Special case for first column */
     invalue = GETJSAMPLE(*inptr++);
     *outptr++ = (JSAMPLE) invalue;
@@ -418,7 +418,7 @@ jinit_upsampler (j_decompress_ptr cinfo)
   /* jdmainct.c doesn't support context rows when min_DCT_scaled_size = 1,
    * so don't ask for it.
    */
-  do_fancy = cinfo->do_fancy_upsampling && cinfo->min_DCT_scaled_size > 1;
+  do_fancy = cinfo->do_fancy_upsampling && cinfo->min_DCT_v_scaled_size > 1;
 
   /* Verify we can handle the sampling factors, select per-component methods,
    * and create storage as needed.
@@ -428,10 +428,10 @@ jinit_upsampler (j_decompress_ptr cinfo)
     /* Compute size of an "input group" after IDCT scaling.  This many samples
      * are to be converted to max_h_samp_factor * max_v_samp_factor pixels.
      */
-    h_in_group = (compptr->h_samp_factor * compptr->DCT_scaled_size) /
-		 cinfo->min_DCT_scaled_size;
-    v_in_group = (compptr->v_samp_factor * compptr->DCT_scaled_size) /
-		 cinfo->min_DCT_scaled_size;
+    h_in_group = (compptr->h_samp_factor * compptr->DCT_h_scaled_size) /
+		 cinfo->min_DCT_h_scaled_size;
+    v_in_group = (compptr->v_samp_factor * compptr->DCT_v_scaled_size) /
+		 cinfo->min_DCT_v_scaled_size;
     h_out_group = cinfo->max_h_samp_factor;
     v_out_group = cinfo->max_v_samp_factor;
     upsample->rowgroup_height[ci] = v_in_group; /* save for use later */

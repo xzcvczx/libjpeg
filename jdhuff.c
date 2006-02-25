@@ -71,11 +71,22 @@ typedef struct {
   d_derived_tbl * dc_cur_tbls[D_MAX_BLOCKS_IN_MCU];
   d_derived_tbl * ac_cur_tbls[D_MAX_BLOCKS_IN_MCU];
   /* Whether we care about the DC and AC coefficient values for each block */
-  boolean dc_needed[D_MAX_BLOCKS_IN_MCU];
-  boolean ac_needed[D_MAX_BLOCKS_IN_MCU];
+  int coef_limit[D_MAX_BLOCKS_IN_MCU];
 } huff_entropy_decoder;
 
 typedef huff_entropy_decoder * huff_entropy_ptr;
+
+
+static const int jpeg_zigzag_order[DCTSIZE2] = {
+   0,  1,  5,  6, 14, 15, 27, 28,
+   2,  4,  7, 13, 16, 26, 29, 42,
+   3,  8, 12, 17, 25, 30, 41, 43,
+   9, 11, 18, 24, 31, 40, 44, 53,
+  10, 19, 23, 32, 39, 45, 52, 54,
+  20, 22, 33, 38, 46, 51, 55, 60,
+  21, 34, 37, 47, 50, 56, 59, 61,
+  35, 36, 48, 49, 57, 58, 62, 63
+};
 
 
 /*
@@ -86,7 +97,7 @@ METHODDEF(void)
 start_pass_huff_decoder (j_decompress_ptr cinfo)
 {
   huff_entropy_ptr entropy = (huff_entropy_ptr) cinfo->entropy;
-  int ci, blkn, dctbl, actbl;
+  int ci, blkn, dctbl, actbl, i;
   jpeg_component_info * compptr;
 
   /* Check that the scan parameters Ss, Se, Ah/Al are OK for sequential JPEG.
@@ -120,11 +131,13 @@ start_pass_huff_decoder (j_decompress_ptr cinfo)
     entropy->ac_cur_tbls[blkn] = entropy->ac_derived_tbls[compptr->ac_tbl_no];
     /* Decide whether we really care about the coefficient values */
     if (compptr->component_needed) {
-      entropy->dc_needed[blkn] = TRUE;
-      /* we don't need the ACs if producing a 1/8th-size image */
-      entropy->ac_needed[blkn] = (compptr->DCT_scaled_size > 1);
+      ci = compptr->DCT_v_scaled_size;
+      if (ci <= 0 || ci > 8) ci = 8;
+      i = compptr->DCT_h_scaled_size;
+      if (i <= 0 || i > 8) i = 8;
+      entropy->coef_limit[blkn] = 1 + jpeg_zigzag_order[(ci - 1) * DCTSIZE + i - 1];
     } else {
-      entropy->dc_needed[blkn] = entropy->ac_needed[blkn] = FALSE;
+      entropy->coef_limit[blkn] = 0;
     }
   }
 
@@ -435,26 +448,20 @@ jpeg_huff_decode (bitread_working_state * state,
 
 /*
  * Figure F.12: extend sign bit.
- * On some machines, a shift and add will be faster than a table lookup.
+ * On some machines, a shift and sub will be faster than a table lookup.
  */
 
 #ifdef AVOID_TABLES
 
-#define HUFF_EXTEND(x,s)  ((x) < (1<<((s)-1)) ? (x) + (((-1)<<(s)) + 1) : (x))
+#define HUFF_EXTEND(x,s)  ((x) < (1<<((s)-1)) ? (x) - ((1<<(s))-1) : (x))
 
 #else
 
-#define HUFF_EXTEND(x,s)  ((x) < extend_test[s] ? (x) + extend_offset[s] : (x))
+#define HUFF_EXTEND(x,s)  ((x) <= bmask[(s) - 1] ? (x) - bmask[s] : (x))
 
-static const int extend_test[16] =   /* entry n is 2**(n-1) */
-  { 0, 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
-    0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000 };
-
-static const int extend_offset[16] = /* entry n is (-1 << n) + 1 */
-  { 0, ((-1)<<1) + 1, ((-1)<<2) + 1, ((-1)<<3) + 1, ((-1)<<4) + 1,
-    ((-1)<<5) + 1, ((-1)<<6) + 1, ((-1)<<7) + 1, ((-1)<<8) + 1,
-    ((-1)<<9) + 1, ((-1)<<10) + 1, ((-1)<<11) + 1, ((-1)<<12) + 1,
-    ((-1)<<13) + 1, ((-1)<<14) + 1, ((-1)<<15) + 1 };
+static const int bmask[16] =	/* bmask[n] is mask for n rightmost bits */
+  { 0, 0x0001, 0x0003, 0x0007, 0x000F, 0x001F, 0x003F, 0x007F, 0x00FF,
+    0x01FF, 0x03FF, 0x07FF, 0x0FFF, 0x1FFF, 0x3FFF, 0x7FFF };
 
 #endif /* AVOID_TABLES */
 
@@ -541,39 +548,40 @@ decode_mcu (j_decompress_ptr cinfo, JBLOCKROW *MCU_data)
 
     for (blkn = 0; blkn < cinfo->blocks_in_MCU; blkn++) {
       JBLOCKROW block = MCU_data[blkn];
-      d_derived_tbl * dctbl = entropy->dc_cur_tbls[blkn];
-      d_derived_tbl * actbl = entropy->ac_cur_tbls[blkn];
+      d_derived_tbl * htbl;
       register int s, k, r;
+      int coef_limit, ci;
 
       /* Decode a single block's worth of coefficients */
 
       /* Section F.2.2.1: decode the DC coefficient difference */
-      HUFF_DECODE(s, br_state, dctbl, return FALSE, label1);
-      if (s) {
-	CHECK_BIT_BUFFER(br_state, s, return FALSE);
-	r = GET_BITS(s);
-	s = HUFF_EXTEND(r, s);
-      }
+      htbl = entropy->dc_cur_tbls[blkn];
+      HUFF_DECODE(s, br_state, htbl, return FALSE, label1);
 
-      if (entropy->dc_needed[blkn]) {
+      htbl = entropy->ac_cur_tbls[blkn];
+      k = 1;
+      coef_limit = entropy->coef_limit[blkn];
+      if (coef_limit) {
 	/* Convert DC difference to actual value, update last_dc_val */
-	int ci = cinfo->MCU_membership[blkn];
+	if (s) {
+	  CHECK_BIT_BUFFER(br_state, s, return FALSE);
+	  r = GET_BITS(s);
+	  s = HUFF_EXTEND(r, s);
+	}
+	ci = cinfo->MCU_membership[blkn];
 	s += state.last_dc_val[ci];
 	state.last_dc_val[ci] = s;
-	/* Output the DC coefficient (assumes jpeg_natural_order[0] = 0) */
+	/* Output the DC coefficient */
 	(*block)[0] = (JCOEF) s;
-      }
-
-      if (entropy->ac_needed[blkn]) {
 
 	/* Section F.2.2.2: decode the AC coefficients */
 	/* Since zeroes are skipped, output area must be cleared beforehand */
-	for (k = 1; k < DCTSIZE2; k++) {
-	  HUFF_DECODE(s, br_state, actbl, return FALSE, label2);
-      
+	for (; k < coef_limit; k++) {
+	  HUFF_DECODE(s, br_state, htbl, return FALSE, label2);
+
 	  r = s >> 4;
 	  s &= 15;
-      
+
 	  if (s) {
 	    k += r;
 	    CHECK_BIT_BUFFER(br_state, s, return FALSE);
@@ -586,33 +594,37 @@ decode_mcu (j_decompress_ptr cinfo, JBLOCKROW *MCU_data)
 	    (*block)[jpeg_natural_order[k]] = (JCOEF) s;
 	  } else {
 	    if (r != 15)
-	      break;
+	      goto EndOfBlock;
 	    k += 15;
 	  }
 	}
-
       } else {
-
-	/* Section F.2.2.2: decode the AC coefficients */
-	/* In this path we just discard the values */
-	for (k = 1; k < DCTSIZE2; k++) {
-	  HUFF_DECODE(s, br_state, actbl, return FALSE, label3);
-      
-	  r = s >> 4;
-	  s &= 15;
-      
-	  if (s) {
-	    k += r;
-	    CHECK_BIT_BUFFER(br_state, s, return FALSE);
-	    DROP_BITS(s);
-	  } else {
-	    if (r != 15)
-	      break;
-	    k += 15;
-	  }
+	if (s) {
+	  CHECK_BIT_BUFFER(br_state, s, return FALSE);
+	  DROP_BITS(s);
 	}
-
       }
+
+      /* Section F.2.2.2: decode the AC coefficients */
+      /* In this path we just discard the values */
+      for (; k < DCTSIZE2; k++) {
+	HUFF_DECODE(s, br_state, htbl, return FALSE, label3);
+
+	r = s >> 4;
+	s &= 15;
+
+	if (s) {
+	  k += r;
+	  CHECK_BIT_BUFFER(br_state, s, return FALSE);
+	  DROP_BITS(s);
+	} else {
+	  if (r != 15)
+	    break;
+	  k += 15;
+	}
+      }
+
+      EndOfBlock: ;
     }
 
     /* Completed MCU, so update state */

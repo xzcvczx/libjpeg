@@ -170,7 +170,8 @@ compress_data (j_compress_ptr cinfo, JSAMPIMAGE input_buf)
 	blockcnt = (MCU_col_num < last_MCU_col) ? compptr->MCU_width
 						: compptr->last_col_width;
 	xpos = MCU_col_num * compptr->MCU_sample_width;
-	ypos = yoffset * DCTSIZE; /* ypos == (yoffset+yindex) * DCTSIZE */
+	ypos = yoffset * compptr->DCT_v_scaled_size;
+	/* ypos == (yoffset+yindex) * DCTSIZE */
 	for (yindex = 0; yindex < compptr->MCU_height; yindex++) {
 	  if (coef->iMCU_row_num < last_iMCU_row ||
 	      yoffset+yindex < compptr->last_row_height) {
@@ -195,7 +196,7 @@ compress_data (j_compress_ptr cinfo, JSAMPIMAGE input_buf)
 	    }
 	  }
 	  blkn += compptr->MCU_width;
-	  ypos += DCTSIZE;
+	  ypos += compptr->DCT_v_scaled_size;
 	}
       }
       /* Try to write the MCU.  In event of a suspension failure, we will
@@ -281,7 +282,8 @@ compress_first_pass (j_compress_ptr cinfo, JSAMPIMAGE input_buf)
       thisblockrow = buffer[block_row];
       (*cinfo->fdct->forward_DCT) (cinfo, compptr,
 				   input_buf[ci], thisblockrow,
-				   (JDIMENSION) (block_row * DCTSIZE),
+				   (JDIMENSION) (block_row *
+				   compptr->DCT_v_scaled_size),
 				   (JDIMENSION) 0, blocks_across);
       if (ndummy > 0) {
 	/* Create dummy blocks at the right edge of the image. */
