@@ -1,3 +1,24 @@
+2006-02-27  Paul van den Berg  <paulberg@wanadoo.nl>
+
+	* commit new source from Guido Vollbeding:
+	He has done some further "facelifting" in
+	jpegclub.org/libjpeg-6c.tar.gz:
+	
+	Merged jdhuff.h and jdphuff.c into jdhuff.c,
+	merged jchuff.h and jcphuff.c into jchuff.c.
+	Updated makefile.cfg accordingly.
+	This cleans up the Huffman coding modules.
+
+	Updated the DCT scaling support so that compression behaves
+	like decompression side:  Wenn chosing floating point DCT,
+	adapt scaled DCT method accordingly instead of failure.
+	Makes compression and decompression exactly symmetric in
+	this regard.
+	Changed the DCT manager and coefficient controller modules
+	for this, also required changes in the global jpegint.h
+	(forward DCT manager struct).
+
+
 2006-02-26  Paul van den Berg  <paulberg@wanadoo.nl>
 
 	* This completes first upload of vollbeding changes.
